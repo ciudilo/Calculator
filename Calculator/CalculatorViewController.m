@@ -7,54 +7,77 @@
 //
 
 #import "CalculatorViewController.h"
+#import "CalculatorBrain.h"
+
+@interface CalculatorViewController()
+@property (nonatomic) BOOL userInTheMiddleOfTypingANumber;
+@property (nonatomic, strong) CalculatorBrain *brain;
+@end
 
 @implementation CalculatorViewController
 
-- (void)didReceiveMemoryWarning
+@synthesize display = _display;
+@synthesize inputLog = _inputLog;
+@synthesize userInTheMiddleOfTypingANumber = _userInTheMiddleOfTypingANumber;
+@synthesize brain = _brain;
+
+- (CalculatorBrain *)brain
 {
-    [super didReceiveMemoryWarning];
-    // Release any cached data, images, etc that aren't in use.
+    if (!_brain) _brain = [[CalculatorBrain alloc] init];
+    return _brain;
 }
 
-#pragma mark - View lifecycle
-
-- (void)viewDidLoad
+- (IBAction)digitPressed:(UIButton *)sender 
 {
-    [super viewDidLoad];
-	// Do any additional setup after loading the view, typically from a nib.
+    NSString *digit = sender.currentTitle;
+
+    if (self.userInTheMiddleOfTypingANumber) 
+    {
+        //makes sure that if user presses . digit more then once consecutive presses are ignored
+        if ( [digit isEqualToString:@"."] && [self.display.text rangeOfString:@"."].location == NSNotFound) 
+        {
+            self.display.text = [self.display.text stringByAppendingString:digit];
+        }
+        else if( ![digit isEqualToString:@"."])
+        {
+            self.display.text = [self.display.text stringByAppendingString:digit];
+        }
+        
+    }
+    else
+    {
+        self.display.text = digit;
+        self.userInTheMiddleOfTypingANumber = YES;
+    }
 }
 
-- (void)viewDidUnload
+- (IBAction)operationPressed:(UIButton *)sender 
 {
-    [super viewDidUnload];
-    // Release any retained subviews of the main view.
-    // e.g. self.myOutlet = nil;
+    if (self.userInTheMiddleOfTypingANumber) [self enterPressed];
+    
+    self.inputLog.text = [self.inputLog.text stringByAppendingString:@" "];
+    self.inputLog.text = [self.inputLog.text stringByAppendingString:sender.currentTitle];
+    self.inputLog.text = [self.inputLog.text stringByAppendingString:@" "];
+    
+    double result = [self.brain performOperation:sender.currentTitle];
+    NSString *resultString = [NSString stringWithFormat:@"%g", result];
+    self.display.text = resultString;
 }
 
-- (void)viewWillAppear:(BOOL)animated
+- (IBAction)enterPressed 
 {
-    [super viewWillAppear:animated];
+    self.inputLog.text = [self.inputLog.text stringByAppendingString:@" "];
+    self.inputLog.text = [self.inputLog.text stringByAppendingString:self.display.text];
+
+    [self.brain pushOperand:[self.display.text doubleValue]];
+    self.userInTheMiddleOfTypingANumber = NO;
 }
 
-- (void)viewDidAppear:(BOOL)animated
+- (IBAction)clearPressed 
 {
-    [super viewDidAppear:animated];
-}
-
-- (void)viewWillDisappear:(BOOL)animated
-{
-	[super viewWillDisappear:animated];
-}
-
-- (void)viewDidDisappear:(BOOL)animated
-{
-	[super viewDidDisappear:animated];
-}
-
-- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
-{
-    // Return YES for supported orientations
-    return (interfaceOrientation != UIInterfaceOrientationPortraitUpsideDown);
+    self.inputLog.text = @"";
+    self.display.text = @"";
+    [self.brain clearBrain];
 }
 
 @end
