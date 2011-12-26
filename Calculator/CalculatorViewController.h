@@ -18,7 +18,11 @@
 
 - (IBAction)operationPressed:(UIButton*)sender;
 
+- (IBAction)variablePressed:(UIButton*)sender;
+
 - (IBAction)enterPressed;
 
 - (IBAction)clearPressed;
+
+- (IBAction)testButtonPressed:(UIButton*)sender;
 @end

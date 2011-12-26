@@ -10,6 +10,8 @@
 
 @interface CalculatorBrain()
 @property (nonatomic, strong) NSMutableArray *programStack;
++ (NSString *)descriptionOfTopOfStack:(NSMutableArray *)program;
++ (BOOL)isOperation:(NSString *)operation;
 @end
 
 @implementation CalculatorBrain
@@ -26,20 +28,77 @@
     return [self.programStack copy];
 }
 
-+ (NSString *)descriptionOfProgram:(id)program
-{
-    return @"Implement this in Homework #2";
-}
-
-- (void)pushOperand:(double)operand
+- (void)pushOperand:(double)operand;
 {
     [self.programStack addObject:[NSNumber numberWithDouble:operand]];
+}
+
+- (void)pushVariable:(NSString*)variable
+{
+    [self.programStack addObject:variable];
+}
+
++ (NSString *)descriptionOfProgram:(id)program
+{
+    NSMutableArray *stack;
+    if ([program isKindOfClass:[NSArray class]]) {
+        stack = [program mutableCopy];
+    }
+    
+    NSString *result = [self descriptionOfTopOfStack:stack];
+    result = [result stringByAppendingString:@" "];
+    
+    if ([stack count] > 0)
+    {
+        result = [result stringByAppendingString:[self descriptionOfProgram:stack]];
+    }
+                                
+    return result;
+}
+
++ (BOOL)isOperation:(NSString *)operation
+{
+    
+    
+    return YES;
+}
+
++ (NSString *)descriptionOfTopOfStack:(NSMutableArray *)program
+{
+    NSString *result;
+    
+    NSSet *twoOperandOps = [[NSSet alloc] initWithObjects:@"+", @"-", @"*", @"/", nil];
+    NSSet *singleOperandOps = [[NSSet alloc] initWithObjects:@"sqrt", @"cos", @"sin", nil];
+
+    id topOfStack = [program lastObject];
+    if (topOfStack) [program removeLastObject];
+    
+    if ( [twoOperandOps containsObject:topOfStack])
+    {
+        NSString *operand = [NSString stringWithFormat:@"%@", topOfStack];  
+        NSString *operation = [NSString stringWithFormat:@"%@ %@ %@",
+                  [self descriptionOfTopOfStack:program], operand, [self descriptionOfTopOfStack:program]];
+        result = [NSString stringWithFormat:@"%@%@%@", @"(", operation, @")"];        
+    }
+    else if ([singleOperandOps containsObject:topOfStack])
+    {
+        NSString *operand = [NSString stringWithFormat:@"%@", topOfStack];
+        result = [operand stringByAppendingFormat:@"%@%@%@", 
+                  @"(", [self descriptionOfTopOfStack:program], @")"];    }
+    else
+    {
+        NSLog(@"Top of the stack: %@", topOfStack);
+        
+        result = [NSString stringWithFormat:@"%@", topOfStack];
+    }
+    
+    return result;
 }
 
 - (double)performOperation:(NSString *)operation
 {
     [self.programStack addObject:operation];
-    return [[self class] runProgram:self.program];
+    return [CalculatorBrain runProgram:self.program];
 }
 
 + (double)popOperandOffProgramStack:(NSMutableArray *)stack
@@ -59,6 +118,7 @@
         
         if ([operation isEqualToString:@"+"])
         {
+            NSLog(@"Operation element on the stack.");
             result = [self popOperandOffProgramStack:stack] + [self popOperandOffProgramStack:stack];
         }
         else if ([operation isEqualToString:@"*"])
@@ -68,16 +128,12 @@
         else if ([operation isEqualToString:@"/"])
         {
             double firstOperand = [self popOperandOffProgramStack:stack];
-            double secondOperan = [self popOperandOffProgramStack:stack];
-            
-            result = secondOperan / firstOperand;
+            result = [self popOperandOffProgramStack:stack] / firstOperand;
         }
         else if ([operation isEqualToString:@"-"])
         {
             double firstOperand = [self popOperandOffProgramStack:stack];
-            double secondOperand = [self popOperandOffProgramStack:stack];
-            
-            result = secondOperand - firstOperand;
+            result = [self popOperandOffProgramStack:stack] - firstOperand;
         }
         else if ([operation isEqualToString:@"sin"])
         {
@@ -97,6 +153,8 @@
         }
     }
     
+    NSLog(@"Pesult pop top of the stack: %g", result);
+    
     return result;
 }
 
@@ -107,6 +165,71 @@
         stack = [program mutableCopy];
     }
     return [self popOperandOffProgramStack:stack];
+}
+
++ (double)runProgram:(id)program usingVariableValues:(NSDictionary *)variableValues;
+{
+    NSMutableArray *stack;
+    if ([program isKindOfClass:[NSArray class]]) {
+        stack = [program mutableCopy];
+    }
+    
+    NSSet *variables = [CalculatorBrain variablesUsedInProgram:stack];
+    
+    NSLog(@"Varaibles set size: %d", [variables count]);
+    NSLog(@"Passed in varaibles dict size: %d", [variableValues count]);
+    
+    for (int i = 0; i < [stack count]; i++) {
+        NSObject *operand = [stack objectAtIndex:i];
+        if( [operand isKindOfClass:[NSString class]] && [variables containsObject:operand])
+        {            
+            NSNumber *varValue = [variableValues objectForKey:operand];
+            if (varValue != Nil)
+            {
+                NSLog(@"Replacing variable %@ with: %@", operand, varValue);
+                [stack replaceObjectAtIndex:i withObject:varValue];
+            }
+            else
+            {
+                [stack replaceObjectAtIndex:i withObject:[NSNumber numberWithDouble:0]];
+            }
+        }
+    }
+    
+    
+    return [CalculatorBrain runProgram:stack];
+}
+
++ (NSSet *)variablesUsedInProgram:(id)program
+{
+    NSSet *twoOperandOps = [[NSSet alloc] initWithObjects:@"+", @"-", @"*", @"/", nil];
+    NSSet *singleOperandOps = [[NSSet alloc] initWithObjects:@"sqrt", @"cos", @"sin", nil];
+    
+    NSMutableArray *stack;
+    if ([program isKindOfClass:[NSArray class]]) {
+        stack = [program mutableCopy];
+    }
+    
+    NSMutableArray *variables = [[NSMutableArray alloc] init];
+    for (NSString *string in stack)
+    {
+        if( ![string doubleValue] && ![twoOperandOps member:string] && ![singleOperandOps member:string]
+           && ![@"π" isEqualToString:string]) // if opernad is not a number and not operation
+        {
+            [variables addObject:string];
+            NSLog(@"Added variable to the list: %@", string);
+        }
+    }
+    
+    if ([variables count] > 0) {
+        return [[NSSet alloc] initWithArray:variables];
+    }
+    else
+    {
+        return Nil;
+    }
+    
+    
 }
 
 - (void) clearBrain
